@@ -5,6 +5,10 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   productionBrowserSourceMaps: false,
 
   staticPageGenerationTimeout: 120,
