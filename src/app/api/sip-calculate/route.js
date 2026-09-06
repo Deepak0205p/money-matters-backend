@@ -9,10 +9,9 @@ const FALLBACK_TIPS = [
   (m, r, y, t, ret) => `₹${Number(m).toLocaleString('en-IN')} mahine ka matlab sirf ₹${Math.round(m / 30)}/din — ek chai se kam! Aur ye chhota investment itna bada fund bana deta hai! ☕`,
 ];
 
-async function callLLM(monthly, rate, yrs, total, returns) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+import { callGemini } from '@/lib/gemini';
 
+async function callLLM(monthly, rate, yrs, total, returns) {
   try {
     const prompt = `You are a friendly Indian financial advisor speaking Hinglish. A user is doing a SIP calculation:
 - Monthly investment: ₹${monthly}
@@ -24,23 +23,11 @@ async function callLLM(monthly, rate, yrs, total, returns) {
 
 Give a SHORT (2-3 lines) personalized tip about their SIP projection. Use Hinglish, be encouraging, include one practical insight. End with a Pro Tip. Use emojis.`;
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 200,
-        temperature: 0.7,
-      }),
+    return await callGemini({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      temperature: 0.7,
+      maxTokens: 250
     });
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? null;
   } catch {
     return null;
   }

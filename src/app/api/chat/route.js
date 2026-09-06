@@ -63,34 +63,21 @@ Lekin dekho — jo content tum padh rahe ho, usme key points hain:
 
 Thoda der baad try karo, main pakka help karunga! 💪`;
 
+import { callGemini } from '@/lib/gemini';
+
 async function callLLM(messages, systemPrompt) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+  // Convert messages to Gemini format: role 'user' | 'model'
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }]
+  }));
 
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages,
-        ],
-        max_tokens: 800,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? null;
-  } catch {
-    return null;
-  }
+  return await callGemini({
+    systemInstruction: systemPrompt,
+    contents,
+    temperature: 0.7,
+    maxTokens: 800
+  });
 }
 
 export async function POST(request) {
