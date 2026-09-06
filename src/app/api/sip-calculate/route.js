@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { validateNumericFields } from '@/lib/security';
+import { callGemini } from '@/lib/gemini';
 
 const FALLBACK_TIPS = [
   (m, r, y, t, ret) => `₹${Number(m).toLocaleString('en-IN')} har mahine invest karke aap ₹${Number(t).toLocaleString('en-IN')} bana sakte ho! Bas consistency rakho, compounding sab kuch karega! 💪`,
@@ -8,8 +9,6 @@ const FALLBACK_TIPS = [
   (m, r, y, t, ret) => `Agar aap sirf 5 saal aur invest karte, toh amount aur bhi double ho jata! Zyada time = zyada compounding magic! ✨`,
   (m, r, y, t, ret) => `₹${Number(m).toLocaleString('en-IN')} mahine ka matlab sirf ₹${Math.round(m / 30)}/din — ek chai se kam! Aur ye chhota investment itna bada fund bana deta hai! ☕`,
 ];
-
-import { callGemini } from '@/lib/gemini';
 
 async function callLLM(monthly, rate, yrs, total, returns) {
   try {

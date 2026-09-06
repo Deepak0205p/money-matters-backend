@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { validateNumericFields } from '@/lib/security';
+import { callGemini } from '@/lib/gemini';
 
 const FALLBACK_TIPS = [
   { tip: 'Pehle emergency fund banao — 6 mahine ka kharcha save karo', priority: 'high' },
@@ -7,8 +8,6 @@ const FALLBACK_TIPS = [
   { tip: 'SIP se shuru karo — ₹500 se bhi shuru ho sakta hai', priority: 'medium' },
   { tip: 'Credit card ka bill hamesha full pay karo', priority: 'medium' },
 ];
-
-import { callGemini } from '@/lib/gemini';
 
 async function callLLM(income, expenses, savings) {
   try {

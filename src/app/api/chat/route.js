@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { validateMessagesArray, sanitizeString } from '@/lib/security';
+import { callGemini } from '@/lib/gemini';
 
 const MAX_MESSAGES = 30;
 
@@ -62,8 +63,6 @@ Lekin dekho — jo content tum padh rahe ho, usme key points hain:
 - Agar koi specific term samajh nahi aayi, toh woh note karke baad mein pucho
 
 Thoda der baad try karo, main pakka help karunga! 💪`;
-
-import { callGemini } from '@/lib/gemini';
 
 async function callLLM(messages, systemPrompt) {
   // Convert messages to Gemini format: role 'user' | 'model'
