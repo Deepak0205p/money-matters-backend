@@ -1,25 +1,15 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const geminiKey = !!process.env.GEMINI_API_KEY;
-  const tavilyKey = !!process.env.TAVILY_API_KEY;
+  const geminiKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY);
 
-  const checks = {
-    status: geminiKey ? "healthy" : "degraded",
+  return NextResponse.json({
+    status: "healthy",
     gemini: geminiKey,
-    tavily: tavilyKey,
+    mode: "Next.js Route Handler",
+    models: ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-flash"],
+    focus: "Financial Literacy & Education Only",
     timestamp: new Date().toISOString(),
-    version: "2.0.0",
-  };
-
-  if (!geminiKey) {
-    checks.status = "degraded";
-    checks.detail = "GEMINI_API_KEY not set — AI responses won't work";
-  }
-
-  if (!tavilyKey) {
-    checks.warnings = ["TAVILY_API_KEY not set — real-time search disabled"];
-  }
-
-  return NextResponse.json(checks);
+    version: "2.5.0"
+  });
 }

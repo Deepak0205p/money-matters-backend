@@ -1,92 +1,36 @@
 import { NextResponse } from "next/server";
 import { callGemini } from "@/lib/gemini";
 import { createConversation, getRecentMessages, addMessage } from "@/lib/chatStore";
-import { sanitizeString } from "@/lib/security";
 
-const SYSTEM_PROMPT = `You are "Paisa Guru" — a friendly, knowledgeable finance teacher for Indian youth (ages 18-30). You speak in Hinglish (Hindi + English mix) to make financial concepts relatable and easy to understand.
+const SYSTEM_PROMPT = `You are "Paisa Guru" — an interactive, friendly, and expert financial education mentor designed specifically to help young learners master personal finance.
 
-## YOUR CORE PURPOSE:
-You exist ONLY to teach personal finance. Every response must be about money, investing, saving, budgeting, taxes, insurance, or financial planning for Indian users.
+## STRICT OBJECTIVE & SCOPE:
+1. EDUCATIONAL PURPOSES ONLY: You are here to TEACH personal finance concepts (Budgeting, Compounding, Inflation, Emergency Fund, Debt Management, Credit Scores, Banking Basics, Insurance Fundamentals, Saving Habits, 50/30/20 Rule, Basic Tax Concepts).
+2. ABSOLUTELY NO INVESTMENT IDEAS / STOCK TIPS: Never recommend specific stocks to buy, crypto tokens, trading calls, speculative investments, or guaranteed return schemes.
+3. If a user asks for stock picks, investment ideas, or price predictions, politely decline: explain that you only teach financial principles and risk management, and explain the core concept (e.g. index funds, diversification, risk-reward trade-off) instead.
+4. NON-FINANCE QUESTIONS: If asked about non-financial topics (movies, sports, politics, general coding, etc.), politely guide the user back to learning personal finance.
 
-## YOUR PERSONALITY:
-- Warm, encouraging, and non-judgmental
-- Use casual Hinglish: "Bhai", "Yaar", "Dekho", "Samjho", "Simple hai"
-- Crack light financial jokes occasionally
-- Always supportive — never make users feel dumb about money
-- Act like a knowledgeable elder brother/sister who's good with money
+## STYLE & LANGUAGE:
+- Speak in warm, conversational, easy-to-understand Hinglish (Hindi + English mix).
+- Use real-world Indian examples (₹ amounts, chai, Zomato, salary, UPI, PPF, FD, SIP).
+- Keep explanations structured: clear steps, bullet points, and practical takeaways.
+- Include a short "💡 Learning Takeaway / Pro Tip" at the end of each educational explanation.`;
 
-## WHAT YOU TEACH (ONLY these topics):
-- Budgeting and saving strategies
-- Emergency funds and financial safety nets
-- Debt management (credit cards, loans, EMIs)
-- Banking basics (savings accounts, FDs, RDs)
-- Investing basics (SIP, mutual funds, stocks, bonds)
-- Tax planning (old vs new regime, 80C, 80D)
-- Insurance (health, life, vehicle)
-- Financial independence and retirement planning
-- UPI, digital payments, and fintech tools
-- Indian financial instruments: PPF, NPS, ELSS, NPS, SCSS
-- Salary management and negotiation tips
-- Side income and freelance finance
-- Goal-based financial planning
-- Behavioral finance and money psychology
-
-## HOW YOU TEACH:
-- Use Indian rupee (₹) amounts and relatable examples (chai ₹40, Zomato ₹300, metro ₹50, Netflix ₹199)
-- Break complex topics into simple 3-4 steps
-- Give practical, actionable advice — not theory
-- Mention real Indian tools: UPI, SIP, PPF, NPS, Groww, Zerodha, Kuvera
-- Use bullet points, numbered lists, and short paragraphs
-- Include a "Pro Tip" at the end of detailed answers
-- Use real-life Indian scenarios (monthly salary, rent in tier-1/tier-2 cities, festival expenses)
-
-## STRICT RULES:
-- NEVER give specific stock buy/sell recommendations
-- NEVER promise guaranteed returns
-- NEVER discuss crypto in detail (redirect to mutual funds)
-- NEVER answer non-finance questions — politely redirect to finance
-- ALWAYS add disclaimer: "Ye educational advice hai, professional financial advice nahi"
-- Keep responses concise: 2-4 paragraphs for simple, 4-6 for complex
-- If you don't know something specific, say so honestly
-- Always encourage learning, not gambling with money
-
-## IF USER ASKS NON-FINANCE:
-Gently redirect: "Bhai, main sirf finance ke baare mein baat kar sakta hoon! Paise se related kuch poocho — budgeting, saving, investing, tax, kuch bhi! 💰"`;
-
-const FINANCE_KEYWORDS = [
-  'invest', 'saving', 'budget', 'tax', 'mutual fund', 'sip', 'stock', 'nifty', 'sensex',
-  'ppf', 'nps', 'fd', 'rd', 'insurance', 'emi', 'loan', 'credit', 'debit', 'upi',
-  'wallet', 'bank', 'interest', 'compound', 'inflation', 'salary', 'income', 'expense',
-  'debt', 'wealth', 'retire', 'pension', 'gold', 'real estate', 'fund', 'portfolio',
-  'dividend', 'equity', 'debt', 'bond', 'gilt', 'index', 'return', 'risk', 'profit',
-  'loss', 'trading', 'broker', 'demat', 'ipo', 'mutual', 'elss', 'ssc', 'hra',
-  'deduction', 'refund', 'itr', 'form 16', 'pan', 'aadhaar', 'kyc', 'credit score',
-  'cibil', 'budget', 'expense tracker', 'financial', 'finance', 'paisa', 'paise',
-  'rupee', 'rupya', 'investment', 'plan', 'goal', 'emergency fund', 'corpus', 'swp',
-  'stp', 'lumpsum', 'flexicap', 'midcap', 'smallcap', 'largecap', 'index fund',
-  'etf', 'reit', 'invit', 'diversif', 'asset allocation', 'rebalanc', 'term insurance',
-  'health insurance', 'car insurance', 'bike insurance', 'claim', 'premium', 'cover',
-  'nip', 'annual report', 'quarterly result', 'profit margin', 'pe ratio', 'pb ratio',
-  'roe', 'roce', 'ebitda', 'market cap', 'sector', 'alloy', 'gold', 'silver',
-  'commodity', 'forex', 'dollar', 'rupee depreciation', 'current account deficit',
-  'rbi', 'repo rate', 'inflation', 'gdp', 'fiscal deficit', 'monetary policy',
-  'budget 2024', 'budget 2025', 'tax slab', 'old regime', 'new regime', 'standard deduction',
-  'freelanc', 'gst', 'business', 'startup', 'side hustle', 'passive income',
-  'real estate', 'rent', 'lease', 'stamp duty', 'registration', 'property',
-  'wedding', 'education', 'child plan', 'sukanya', 'pension', 'annuity',
-  'financial freedom', 'fire', 'lean fire', 'fat fire', 'coast fire'
+const NON_FINANCE_PATTERNS = [
+  /who won/i, /cricket/i, /football/i, /movie/i, /actor/i, /weather/i,
+  /recipe/i, /cook/i, /song/i, /lyrics/i, /joke/i, /coding/i, /javascript/i,
+  /python code/i, /html css/i, /president/i, /politics/i, /election/i
 ];
 
-function isFinanceRelated(message) {
-  const lower = message.toLowerCase();
-  return FINANCE_KEYWORDS.some(kw => lower.includes(kw));
+function isOffTopic(text) {
+  const t = text.toLowerCase().trim();
+  if (t.length < 2) return false;
+  return NON_FINANCE_PATTERNS.some(p => p.test(t));
 }
 
 async function callTavily(query) {
   const apiKey = process.env.TAVILY_API_KEY;
   if (!apiKey) return null;
-
-  const financeQuery = `India personal finance ${query}`;
 
   try {
     const res = await fetch('https://api.tavily.com/search', {
@@ -94,10 +38,10 @@ async function callTavily(query) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: apiKey,
-        query: financeQuery,
+        query: `India financial literacy concept ${query}`,
         search_depth: "basic",
         include_answer: true,
-        max_results: 3,
+        max_results: 2,
         topic: "finance"
       }),
     });
@@ -105,123 +49,124 @@ async function callTavily(query) {
     const data = await res.json();
     return data.answer || data.results?.map(r => r.content).join('\n') || null;
   } catch (err) {
-    console.error("Tavily error:", err);
+    console.warn("Tavily lookup note:", err.message);
     return null;
   }
+}
+
+// Educational Fallback Engine (when Gemini API key is offline / not yet configured)
+function getEducationalFallback(query) {
+  const q = query.toLowerCase();
+
+  if (q.includes('stock') && (q.includes('buy') || q.includes('tip') || q.includes('best') || q.includes('recommend'))) {
+    return `**Bhai, main stock tips ya specific investment ideas nahi deta hoon! 🚫📈**\n\nMain aapko **Financial Literacy** seekhane ke liye bana hoon taaki aap khud smart financial decisions le sako.\n\n### 📚 Core Concept: Stock Picking vs Index Investing\n1. **Individual Stocks:** High risk hota hai aur deep company research chahiye hoti hai.\n2. **Index Funds / Broad Diversification:** Nifty 50 jaise index funds mein top 50 Indian companies ka basket milta hai jisse single-stock risk khatam hota hai.\n3. **Golden Rule:** Kabhi bhi tips par paisa mat lagao. Pehle Emergency Fund banao, phir long-term SIP start karo.\n\n💡 *Pro Tip: Financial learning par dhyan do, quick money schemes se bacho!*`;
+  }
+
+  if (q.includes('budget') || q.includes('50/30/20') || q.includes('salary') || q.includes('kharcha')) {
+    return `### 📊 50/30/20 Budgeting Rule — Simple & Powerful!\n\nAap apni monthly income ko 3 parts mein divide karo:\n\n1. **50% Needs (Zarooratein):** Rent, grocery, electricity bill, transit, basic insurance.\n2. **30% Wants (Shauk):** Dining out, Netflix, shopping, weekend trips.\n3. **20% Savings & Debt Repayment (Future Wealth):** Emergency fund, SIPs, retirement.\n\n### 🚀 Action Step:\n- Salary aate hi pehle **20% save/invest** karo ("Pay Yourself First"), baaki 80% se mahine ka kharcha chalao!\n\n💡 *Pro Tip: Wants ko credit card par stretch mat karo, UPI expense track karo.*`;
+  }
+
+  if (q.includes('sip') || q.includes('mutual fund') || q.includes('compound') || q.includes('invest')) {
+    return `### 💡 SIP & The Power of Compounding (Chakravriddhi Byaj)\n\n**SIP (Systematic Investment Plan)** ka matlab hai har mahine ek fixed amount (e.g. ₹500 ya ₹2,000) regular invest karna.\n\n### 🌟 Kyun zaroori hai:\n1. **Rupee Cost Averaging:** Market girne par zyada units milti hain, badhne par portfolio grow hota hai.\n2. **Discipline:** Har mahine automatic investment hoti hai.\n3. **Power of Time (Compounding):**\n   - ₹2,000/month @ 12% for 15 years = **₹10 Lakhs** (Investment: ₹3.6L | Wealth Gain: ₹6.4L!)\n\n💡 *Pro Tip: Market timing karne ki zaroorat nahi hoti, bas early start karo aur consistent raho.*`;
+  }
+
+  if (q.includes('emergency fund') || q.includes('emergency')) {
+    return `### 🛡️ Emergency Fund — Aapka Financial Lifejacket!\n\nEmergency fund wo paisa hai jo medical emergency, sudden job loss, ya unexpected expenses ke liye safe rakha jata hai.\n\n### 📌 Golden Rules:\n1. **Kitna hona chahiye?** Aapke monthly mandatory expenses ka **3 to 6 months** ka amount.\n2. **Kahan rakhein?** High Liquidity options mein — jaise High Interest Savings Account ya Liquid Mutual Funds (Stock market mein nahi!).\n3. **Rule:** Isse shopping ya vacation ke liye touch nahi karna hai!\n\n💡 *Pro Tip: Pehle Emergency fund complete karo, uske baad hi long-term riskier investments karo.*`;
+  }
+
+  return `### 🎓 Financial Education Guide\n\nMain aapko finance ke concepts seekhane mein madad karne ke liye yahan hoon!\n\nAap in topics par seekh sakte hain:\n- 💰 **Budgeting & Expense Tracking** (50/30/20 rule)\n- 🛡️ **Emergency Fund & Insurance Basics**\n- 📈 **Power of Compounding & SIP Mechanics**\n- 💳 **Credit Card Discipline & Debt Traps**\n- 🏦 **Savings Accounts vs FDs vs Liquid Funds**\n- 📋 **Basics of Indian Taxes (Old vs New Regime)**\n\n*Aap kis concept ke baare mein detail mein seekhna chahte hain?*`;
 }
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    let { message, conversationId } = body;
+    let { message, conversationId } = body || {};
 
     if (!message || !message.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    const sanitized = sanitizeString(message);
-    if (!sanitized) {
-      return NextResponse.json({ error: "Invalid message" }, { status: 400 });
-    }
+    const trimmed = message.trim();
 
-    // Content filter: check if finance-related
-    if (!isFinanceRelated(sanitized)) {
-      const redirectMsg = `Bhai, main sirf **personal finance** ke baare mein baat kar sakta hoon! 😊\n\nPaise se related kuch poocho:\n- 💰 Budgeting & Saving\n- 📈 Investing (SIP, Mutual Funds)\n- 🏦 Banking & UPI\n- 💳 Credit Cards & Loans\n- 📋 Tax Planning\n- 🛡️ Insurance\n- 🎯 Financial Goals\n\n*"Paisa hai toh main hoon!"* 💸`;
+    // 1. Off-topic filter check
+    if (isOffTopic(trimmed)) {
+      const redirectMsg = `Bhai, main sirf **personal finance seekhane** ke liye hoon! 🎓💰\n\nMain non-finance questions answer nahi karta. Paise se related concepts poocho jaise:\n- 📊 Budgeting kaise karein?\n- 🛡️ Emergency Fund kyun zaroori hai?\n- 💡 Compounding aur SIP kaise kaam karta hai?\n- 💳 Credit cards ke debt trap se kaise bachein?\n\n*Aapka finance se related kya sawal hai?*`;
 
-      return new Response(
-        createSSEStream(redirectMsg, 'AI', []),
-        {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Conversation-Id": conversationId || ""
-          }
+      return new Response(createSSEStream(redirectMsg, 'AI', []), {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "X-Conversation-Id": conversationId || ""
         }
-      );
+      });
     }
 
-    // Create conversation if needed
+    // 2. Manage Conversation & History
     if (!conversationId) {
-      const conv = await createConversation(sanitized.substring(0, 50));
+      const conv = await createConversation(trimmed.substring(0, 45));
       if (conv) conversationId = conv.id;
     }
 
-    // Load history
     let history = [];
     if (conversationId) {
-      history = await getRecentMessages(conversationId, 10);
+      history = await getRecentMessages(conversationId, 6);
+      await addMessage(conversationId, "user", trimmed);
     }
 
-    // Save user message
-    if (conversationId) {
-      await addMessage(conversationId, "user", sanitized);
+    // 3. Search web context via Tavily if needed
+    const tavilyInfo = await callTavily(trimmed);
+    let extraContext = '';
+    if (tavilyInfo) {
+      extraContext = `\n\n## Verified Concept Context:\n${tavilyInfo}\nUse this purely for accurate educational explanations.`;
     }
 
-    // Search for real-time finance context
-    const tavilyResult = await callTavily(sanitized);
-
-    // Build context
-    let contextStr = '';
-    if (tavilyResult) {
-      contextStr = `\n\n## Real-time Finance Context (from web):\n${tavilyResult}\n\nUse this data to give current, accurate advice. If the data is about market numbers, mention them. If it's about schemes/policies, reference them.`;
-    }
-
-    const fullSystemPrompt = SYSTEM_PROMPT + contextStr;
-
-    // Format messages for LLM
+    // 4. Prepare Prompt Messages
     const llmMessages = [
       ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: sanitized }
+      { role: 'user', content: trimmed }
     ];
 
-    // Call Gemini
+    // 5. Call Gemini LLM
     const startTime = Date.now();
-    const reply = await callGemini({
-      systemInstruction: fullSystemPrompt,
+    let reply = await callGemini({
+      systemInstruction: SYSTEM_PROMPT + extraContext,
       contents: llmMessages.map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }]
       })),
-      temperature: 0.7,
-      maxTokens: 800
+      temperature: 0.6,
+      maxTokens: 900
     });
+
     const latencyMs = Date.now() - startTime;
 
-    if (reply) {
-      // Save assistant message
-      if (conversationId) {
-        await addMessage(conversationId, "assistant", reply, {
-          latency_ms: latencyMs,
-        });
-      }
-
-      // Determine route based on Tavily usage
-      const route = tavilyResult ? 'ONLINE' : 'AI';
-
-      // Return as SSE stream
-      return new Response(
-        createSSEStream(reply, route, []),
-        {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Conversation-Id": conversationId || ""
-          }
-        }
-      );
+    // 6. Fallback to rich educational response if API key is not set or network fails
+    if (!reply) {
+      reply = getEducationalFallback(trimmed);
     }
 
-    return NextResponse.json(
-      { error: "AI model se response nahi aa paya. API key check karo!" },
-      { status: 500 }
-    );
+    if (conversationId && reply) {
+      await addMessage(conversationId, "assistant", reply, {
+        latency_ms: latencyMs,
+      });
+    }
+
+    const route = tavilyInfo ? 'ONLINE' : 'AI';
+
+    return new Response(createSSEStream(reply, route, []), {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Conversation-Id": conversationId || ""
+      }
+    });
 
   } catch (error) {
-    console.error("Chatbot API error:", error);
+    console.error("[Chatbot API] Error processing chat:", error);
     return NextResponse.json(
-      { error: "Oops, something went wrong. Please try again." },
+      { error: "Internal server error. Please try again." },
       { status: 500 }
     );
   }

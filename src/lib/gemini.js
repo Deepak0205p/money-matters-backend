@@ -1,14 +1,15 @@
-﻿const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-];
+const CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL,
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash'
+].filter(Boolean);
 
-export async function callGemini({ systemInstruction, contents, temperature = 0.7, maxTokens = 800 }) {
+export async function callGemini({ systemInstruction, contents, temperature = 0.6, maxTokens = 900 }) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn("No Gemini API key found");
+    console.warn("No Gemini API key found in environment variables");
     return null;
   }
 
